@@ -118,6 +118,10 @@ def replace_call_method_for_flux(model):
             from diffusers.models.transformers.transformer_flux import FluxTransformerBlock
             layer.forward = FluxTransformerBlockForward.__get__(layer, FluxTransformerBlock)
         
+        if layer.__class__.__name__ == 'FluxSingleTransformerBlock':
+            from diffusers.models.transformers.transformer_flux import FluxSingleTransformerBlock
+            layer.forward = FluxSingleTransformerBlockForward.__get__(layer, FluxSingleTransformerBlock)
+        
         replace_call_method_for_flux(layer)
     
     return model
@@ -189,6 +193,14 @@ def save_attention_maps(attn_maps, tokenizer, prompts, base_dir='attn_maps', unc
     total_tokens = [tokenizer.convert_ids_to_tokens(token_id) for token_id in token_ids]
     
     os.makedirs(base_dir, exist_ok=True)
+    
+    text_length = 512
+    # attn_maps = attn_maps[:,:,text_length:,:text_length] #(batch, attn_head, image, text) eg (1,24,4096,512)
+    # attn_maps = rearrange(
+    #     attn_maps,
+    #     'batch attn_head (height width) attn_dim -> batch attn_head height width attn_dim',
+    #     height = 64  #512
+    # )
     
     total_attn_map = list(list(attn_maps.values())[0].values())[0].sum(1)
     if unconditional:

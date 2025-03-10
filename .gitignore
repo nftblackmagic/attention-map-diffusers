@@ -11,3 +11,13 @@ demo/**.png
 
 build
 dist
+
+attn_maps*
+
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.bmp
+*.tiff

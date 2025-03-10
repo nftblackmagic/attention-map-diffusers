@@ -20,7 +20,7 @@ pipe = init_pipeline(pipe)
 # recommend not using batch operations for sd3, as cpu memory could be exceeded.
 prompts = [
     # "A photo of a puppy wearing a hat.",
-    "A capybara holding a sign that reads Hello World.",
+    "A capybara holding a Hello World.",
 ]
 
 images = pipe(
@@ -34,5 +34,5 @@ for batch, image in enumerate(images):
 
 ##### 2. Process and Save attention map #####
 # set unconditional to False for flux
-save_attention_maps(attn_maps, pipe.tokenizer, prompts, base_dir='attn_maps-flux-dev', unconditional=False)
+save_attention_maps(attn_maps, pipe.tokenizer, prompts, base_dir='attn_maps-flux-dev2', unconditional=False)
 #############################################

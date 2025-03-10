@@ -1148,6 +1148,9 @@ def FluxTransformer2DModelForward(
                 temb=temb,
                 image_rotary_emb=image_rotary_emb,
                 joint_attention_kwargs=joint_attention_kwargs,
+                ##########################################################################################
+                timestep=timestep
+                ##########################################################################################
             )
 
         # controlnet residual
@@ -1699,6 +1702,36 @@ def FluxTransformerBlockForward(
 
     return encoder_hidden_states, hidden_states
 
+def FluxSingleTransformerBlockForward(
+    self,
+    hidden_states: torch.FloatTensor,
+    temb: torch.FloatTensor,
+    image_rotary_emb=None,
+    joint_attention_kwargs=None,
+    timestep: Optional[torch.Tensor] = None,
+):
+    residual = hidden_states
+    norm_hidden_states, gate = self.norm(hidden_states, emb=temb)
+    mlp_hidden_states = self.act_mlp(self.proj_mlp(norm_hidden_states))
+    joint_attention_kwargs = joint_attention_kwargs or {}
+    attn_output = self.attn(
+        hidden_states=norm_hidden_states,
+        image_rotary_emb=image_rotary_emb,
+        ############################################################
+        timestep=timestep,
+        ############################################################
+        **joint_attention_kwargs,
+    )
+
+    hidden_states = torch.cat([attn_output, mlp_hidden_states], dim=2)
+    gate = gate.unsqueeze(1)
+    hidden_states = gate * self.proj_out(hidden_states)
+    hidden_states = residual + hidden_states
+    if hidden_states.dtype == torch.float16:
+        hidden_states = hidden_states.clip(-65504, 65504)
+
+    return hidden_states
+
 def SanaTransformerBlockForward(
     self,
     hidden_states: torch.Tensor,
@@ -2171,21 +2204,23 @@ def flux_attn_call2_0(
         key = apply_rotary_emb(key, image_rotary_emb)
 
     ####################################################################################################
-    if hasattr(self, "store_attn_map") and encoder_hidden_states is not None:
+    if hasattr(self, "store_attn_map"):
         hidden_states, attention_probs = scaled_dot_product_attention(
             query, key, value, attn_mask=attention_mask, dropout_p=0.0, is_causal=False
         )
 
-        text_length = encoder_hidden_states_query_proj.shape[2]
+        # text_length = encoder_hidden_states_query_proj.shape[2]
 
         # (1,24,4608,4608) -> (1,24,4096,512)
+        text_length = 512
         attention_probs = attention_probs[:,:,text_length:,:text_length].cpu()
         
         self.attn_map = rearrange(
             attention_probs,
             'batch attn_head (height width) attn_dim -> batch attn_head height width attn_dim',
-            height = height
+            height = 64
         ) # (1,24,4096,512) -> (1,24,height,width,512)
+        # self.attn_map = attention_probs.cpu()
         self.timestep = timestep[0].cpu().item() # TODO: int -> list
     else:
         hidden_states = F.scaled_dot_product_attention(

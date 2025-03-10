@@ -9,7 +9,7 @@ from attention_map_diffusers import (
 
 pipe = StableDiffusion3Pipeline.from_pretrained(
     "stabilityai/stable-diffusion-3-medium-diffusers",
-    torch_dtype=torch.bfloat16
+    torch_dtype=torch.float16
 )
 pipe = pipe.to("cuda")
 
